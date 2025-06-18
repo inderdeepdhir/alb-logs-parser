@@ -1,12 +1,9 @@
-import glob
-from urllib.parse import parse_qsl, urlencode, urlparse
-import maya
 import re
 import logging
-import json
+from typing import Optional
+from urllib.parse import urlparse
 
-
-def parse_alb_log_line(line):
+def parse_alb_log_line(line, redact:Optional[bool]= False):
 	"""
 	returns dict of log
 	"""
@@ -51,6 +48,10 @@ def parse_alb_log_line(line):
 		for i, field in enumerate(fields):
 			# Create dict of fields and value
 			logDict[field]=matches.group(i+1)
+		if redact and 'request_url' in logDict:
+			url = logDict.pop('request_url')
+			logDict['request_url'] = _redact_qs(url)
+			logDict['request_orig'] = url
 		# check of data is properly parsed	
 		if(logDict.get('request_verb')!= None and logDict.get('request_verb') != ''):
 			logDict = fix_domain_name(logDict)
@@ -67,7 +68,7 @@ def fix_domain_name(logDict):
 		regex = r"http(s)?:\/\/([\w\-\.]+).+" # carefull with the () group 1 is s and 2nd is domain
 		matches = re.search(regex, request_url)		
 		if matches:
-			print(matches.groups)
+			logging.debug("Found groups %s", matches.groups)
 			logDict['domain_name'] = matches.group(2)
 	return logDict	
 
@@ -87,7 +88,7 @@ def replace_numeric_values(input_string, replacement='/#'):
     return replaced_string
 
 
-def redact_qs(url):
+def _redact_qs(url):
 	# to remove query string from path to reduce unique requests
 	u = urlparse(url)
 	## inlux is not supporting query string for somereason

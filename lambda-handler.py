@@ -1,13 +1,8 @@
-import json
 import urllib.parse
 import boto3
 import gzip
-from datetime import datetime,timezone
 
-import re, sys
-import requests
-import os
-from util.albparser import parse_alb_log_line,parse_datetime,redact_qs
+from util.albparser import parse_alb_log_line
 from destinations.influxdb import InlfuxDBDestinationHandler
 
 

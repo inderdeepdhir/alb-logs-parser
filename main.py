@@ -5,17 +5,25 @@
 # Goal: To parse alb logs and push to destination for analyzing
 #
 
-from dotenv import load_dotenv
-load_dotenv()
 import signal
 import sys
 import os
 import argparse
 import logging
+from typing import Optional
 from util.LogsConsumer import LogsConsumer
-from destinations.log import ConsoleDestinationHandler
+from util.albparser import parse_alb_log_line
+from destinations.DestinationHandler import DestinationHandler
+from destinations.log import ConsoleDestinationHandler, CSVHandler
 
-def parse_args():
+def parse_alb_log_file(filepath, handler:Optional[DestinationHandler] = ConsoleDestinationHandler):
+	if handler is None:
+		handler = ConsoleDestinationHandler
+	with open(filepath, 'r', encoding='utf-8') as file:
+		for line in file:
+			handler.push(parse_alb_log_line(line.rstrip('\n')))
+
+def parse_args(handler:Optional[DestinationHandler] = ConsoleDestinationHandler):
     parser = argparse.ArgumentParser(description=f"To parse alb logs and push to destination",prog='PROG',usage=f"{sys.argv[0]} --file file_name")
     parser.add_argument('-d','--dir', help='Logs directory Example: --dir log dir for logs')
     parser.add_argument('-f','--file', help='Log file path Example: --file file_path')
@@ -31,14 +39,14 @@ def parse_args():
             files = os.listdir(args.dir)
             for f in files:
                 filepath = f"{args.dir}/{f}"
-                parse_alb_log_file(filepath)
+                parse_alb_log_file(filepath, handler)
         except NotADirectoryError as err:
             print(f"Invalid directory |  Error: {err}")
         except BaseException as err:
             print(f"Error: {err}")
     else:
         # file path provided will be parsing file directly        
-        parse_alb_log_file(args.file)       
+        parse_alb_log_file(args.file, handler)
 
 consumers=[]
 
@@ -48,10 +56,11 @@ def signal_handler(sig, frame):
     logging.info('Stop signal recieved')    
 
 if __name__ == '__main__':
-    logging.basicConfig(level = logging.INFO,format='{"name":"%(name)s","level":"%(levelname)s","message":"%(message)s"}')
+    #logging.basicConfig(level = logging.INFO,format='{"name":"%(name)s","level":"%(levelname)s","message":"%(message)s"}')
+    logging.basicConfig(level = logging.INFO)
     if len(sys.argv) > 2:
         logging.info('Using CLI for parsing logs')
-        parse_args()
+        parse_args(CSVHandler)
         sys.exit(0)    
     logging.info('Starting consumers')
     c = LogsConsumer(os.getenv('QUEUE_URL'))

@@ -1,14 +1,16 @@
-import logging
 import sys
-from destinations.DestinationHandler import DestinationHandler
 import json
-from util.albparser import redact_qs
+import csv
+from destinations.DestinationHandler import DestinationHandler
+
+STDOUT_CSV_WRITER = csv.writer(sys.stdout, quoting=csv.QUOTE_MINIMAL)
 
 class ConsoleDestinationHandler(DestinationHandler):
     @staticmethod
     def push(log:dict):
-        # redact url
-        url = log.get('request_url')
-        log['escaped_url']= redact_qs(url)        
-        
         print(json.dumps(log))
+
+class CSVHandler(DestinationHandler):
+    @staticmethod
+    def push(log:dict):
+        STDOUT_CSV_WRITER.writerow(log.values())
